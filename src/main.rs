@@ -5,6 +5,7 @@ use serde_json::Value;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
+    let filters = parse_filters(args.as_slice());
     let Some(dir) = args.get(1) else {
         eprintln!("Usage: {} <directory>", args[0]);
         exit(1);
@@ -40,7 +41,13 @@ fn main() {
                 .to_string_lossy()
                 .contains("latest")
             {
-                continue;
+                if filters.latest.is_none() {
+                    continue;
+                }
+            } else {
+                if filters.latest.is_some() && filters.latest.unwrap() {
+                    continue;
+                }
             }
 
             let contents = fs::read_to_string(&file_path);
@@ -54,7 +61,7 @@ fn main() {
 
             match serde_json::from_str::<Value>(&contents) {
                 Ok(json) => {
-                    check_description(&json, &parse_filters(args.as_slice()));
+                    check_description(&json, &filters, &file_path.display().to_string());
                 }
                 Err(_) => {
                     println!("Invalid JSON: {}", file_path.display());
@@ -83,7 +90,7 @@ struct Player {
     id: Option<String>,
 }
 
-fn check_description(json: &Value, filters: &Filters) {
+fn check_description(json: &Value, filters: &Filters, filename: &str) {
     let description = json.get("description");
     let description = if let Some(description) = description {
         parse_description(description)
@@ -129,6 +136,42 @@ fn check_description(json: &Value, filters: &Filters) {
                 .any(|p| p.name.as_ref().is_some_and(|name| regex.is_match(name)));
 
             if !matched {
+                return;
+            }
+        }
+    }
+
+    if !(filters.latest.is_some() && filters.latest.unwrap()) {
+        let temp = filename.split("/").collect::<Vec<&str>>();
+        let temp = temp.last().unwrap();
+        let temp = temp.split("_").collect::<Vec<&str>>();
+        let temp = temp.first().unwrap().split("-").collect::<Vec<&str>>();
+        let year = temp[0].parse::<i32>().unwrap();
+        let month = temp[1].parse::<i32>().unwrap();
+        let day = temp[2].parse::<i32>().unwrap();
+
+        if let Some(date) = &filters.min_date {
+            let temp = date.split("-").collect::<Vec<&str>>();
+            let min_year = temp[0].parse::<i32>().unwrap_or(0);
+            let min_month = temp[1].parse::<i32>().unwrap_or(0);
+            let min_day = temp[2].parse::<i32>().unwrap_or(0);
+            if year < min_year
+                || (year == min_year && month < min_month)
+                || (year == min_year && month == min_month && day < min_day)
+            {
+                return;
+            }
+        }
+
+        if let Some(date) = &filters.max_date {
+            let temp = date.split("-").collect::<Vec<&str>>();
+            let max_year = temp[0].parse::<i32>().unwrap_or(0);
+            let max_month = temp[1].parse::<i32>().unwrap_or(0);
+            let max_day = temp[2].parse::<i32>().unwrap_or(0);
+            if year > max_year
+                || (year == max_year && month > max_month)
+                || (year == max_year && month == max_month && day > max_day)
+            {
                 return;
             }
         }
@@ -232,6 +275,9 @@ struct Filters {
     enforces_secure_chat: Option<bool>,
     id_regex: Option<regex::Regex>,
     ip_regex: Option<regex::Regex>,
+    min_date: Option<String>,
+    max_date: Option<String>,
+    latest: Option<bool>,
 }
 
 fn parse_filters(args: &[String]) -> Filters {
@@ -356,6 +402,23 @@ fn parse_filters(args: &[String]) -> Filters {
                 }
                 i += 2;
             }
+            "--min-date" | "--min-date" if i + 1 < args.len() => {
+                filters.min_date = Some(args[i + 1].clone());
+                i += 2;
+            }
+            "--max-date" | "--max-date" if i + 1 < args.len() => {
+                filters.max_date = Some(args[i + 1].clone());
+                i += 2;
+            }
+            "--date" if i + 1 < args.len() => {
+                filters.min_date = Some(args[i + 1].clone());
+                filters.max_date = Some(args[i + 1].clone());
+                i += 2;
+            }
+            "--latest" | "--latest-only" => {
+                filters.latest = Some(true);
+                i += 1;
+            }
             "--help" | "-h" => {
                 println!("Usage: <dir> <options>");
                 println!("Options:");
@@ -371,6 +434,10 @@ fn parse_filters(args: &[String]) -> Filters {
                 println!("  --max-version <number>       Maximum version protocol");
                 println!("  --id <regex>                Filter by player ID regex");
                 println!("  --ip <regex>                Filter by IP regex");
+                println!("  --min-date <date (YYYY-MM-DD)>           Minimum date");
+                println!("  --max-date <date (YYYY-MM-DD)>           Maximum date");
+                println!("  --latest                     Only parse latest scan");
+                println!("  --date <date>               Filter by date");
                 println!("  --help, -h                  Show this help message");
                 println!("  --version, -v               Show version");
                 exit(0);
