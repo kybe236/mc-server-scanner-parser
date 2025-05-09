@@ -26,7 +26,7 @@ fn main() {
             exit(1);
         }
 
-        for file_entry in fs::read_dir(ip_port_path).unwrap() {
+        for file_entry in fs::read_dir(ip_port_path.clone()).unwrap() {
             let file_entry = file_entry.unwrap();
             let file_path = file_entry.path();
 
@@ -44,10 +44,8 @@ fn main() {
                 if filters.latest.is_none() {
                     continue;
                 }
-            } else {
-                if filters.latest.is_some() && filters.latest.unwrap() {
-                    continue;
-                }
+            } else if filters.latest.is_some() && filters.latest.unwrap() {
+                continue;
             }
 
             let contents = fs::read_to_string(&file_path);
@@ -61,7 +59,16 @@ fn main() {
 
             match serde_json::from_str::<Value>(&contents) {
                 Ok(json) => {
-                    check_description(&json, &filters, &file_path.display().to_string());
+                    check_description(
+                        &json,
+                        &filters,
+                        &file_path.display().to_string(),
+                        ip_port_path
+                            .display()
+                            .to_string()
+                            .split(":")
+                            .collect::<Vec<&str>>()[0],
+                    );
                 }
                 Err(_) => {
                     println!("Invalid JSON: {}", file_path.display());
@@ -90,7 +97,7 @@ struct Player {
     id: Option<String>,
 }
 
-fn check_description(json: &Value, filters: &Filters, filename: &str) {
+fn check_description(json: &Value, filters: &Filters, filename: &str, ip: &str) {
     let description = json.get("description");
     let description = if let Some(description) = description {
         parse_description(description)
@@ -256,11 +263,14 @@ fn check_description(json: &Value, filters: &Filters, filename: &str) {
     }
 
     println!("Server found:");
+    println!("IP: {}", ip);
     println!("Description: {}", description);
     println!("Version: {:?}", version);
     println!("Enforces Secure Chat: {}", enforces_secure_chat);
     println!("Favicon: {}", favicon);
     println!("Players: {:?}", players);
+    println!("------------------------------");
+    println!();
 }
 
 #[derive(Debug, Default)]
