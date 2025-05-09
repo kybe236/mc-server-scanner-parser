@@ -17,6 +17,8 @@ fn main() {
         exit(1);
     }
 
+    println!();
+    println!("------------------------------");
     for entry in fs::read_dir(path).unwrap() {
         let entry = entry.unwrap();
         let ip_port_path = entry.path();
@@ -271,6 +273,7 @@ fn check_description(json: &Value, filters: &Filters, filename: &str, ip: &str) 
     println!("Enforces Secure Chat: {}", enforces_secure_chat);
     println!("Favicon: {}", favicon);
     println!("Players: {:?}", players);
+    println!();
     println!("------------------------------");
     println!();
 }
