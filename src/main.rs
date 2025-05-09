@@ -259,10 +259,8 @@ fn check_description(json: &Value, filters: &Filters, filename: &str, ip: &str) 
     }
 
     if let Some(regex) = &filters.ip_regex {
-        if let Some(ip) = json.get("ip") {
-            if !regex.is_match(ip.as_str().unwrap_or("")) {
-                return;
-            }
+        if !regex.is_match(ip) {
+            return;
         }
     }
 
