@@ -129,8 +129,8 @@ fn check_description(json: &Value, filters: &Filters, filename: &str) {
         return;
     };
 
-    if let Some(sample) = &players.sample {
-        if let Some(regex) = &filters.name_regex {
+    if let Some(regex) = &filters.name_regex {
+        if let Some(sample) = &players.sample {
             let matched = sample
                 .iter()
                 .any(|p| p.name.as_ref().is_some_and(|name| regex.is_match(name)));
@@ -138,6 +138,8 @@ fn check_description(json: &Value, filters: &Filters, filename: &str) {
             if !matched {
                 return;
             }
+        } else {
+            return;
         }
     }
 
