@@ -67,7 +67,11 @@ fn main() {
                             .display()
                             .to_string()
                             .split(":")
-                            .collect::<Vec<&str>>()[0],
+                            .collect::<Vec<&str>>()[0]
+                            .split("/")
+                            .collect::<Vec<&str>>()
+                            .last()
+                            .unwrap(),
                     );
                 }
                 Err(_) => {
